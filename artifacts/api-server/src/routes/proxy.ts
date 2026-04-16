@@ -1706,6 +1706,7 @@ async function handleClaude({
   const buildCreateParams = () => ({
     model,
     max_tokens: maxTokens,
+    temperature: 1,
     ...(systemMessages ? { system: systemMessages } : {}),
     ...thinkingParam,
     messages: chatMessages,
