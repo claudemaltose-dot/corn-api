@@ -1659,7 +1659,7 @@ async function handleGemini({
 }
 
 async function handleClaude({
-  req, res, client, model, messages, stream, maxTokens, temperature, thinking = false, thinkingVisible = false, tools, toolChoice, startTime,
+  req, res, client, model, messages, stream, maxTokens, temperature, topP, thinking = false, thinkingVisible = false, tools, toolChoice, startTime,
 }: {
   req: Request;
   res: Response;
@@ -1669,6 +1669,7 @@ async function handleClaude({
   stream: boolean;
   maxTokens: number;
   temperature?: number;
+  topP?: number;
   thinking?: boolean;
   thinkingVisible?: boolean;
   tools?: OAITool[];
@@ -1709,7 +1710,9 @@ async function handleClaude({
   const buildCreateParams = () => ({
     model,
     max_tokens: maxTokens,
-    temperature: temperature ?? 1,
+    ...(isAdaptiveThinkingModel
+      ? {}
+      : { temperature: temperature ?? 1, top_p: topP ?? 0.95 }),
     ...(systemMessages ? { system: systemMessages } : {}),
     ...thinkingParam,
     messages: chatMessages,
