@@ -1683,8 +1683,11 @@ async function handleClaude({
   // Convert all messages including tool_calls / tool roles
   const chatMessages = convertMessagesForClaude(messages);
 
+  const isAdaptiveThinkingModel = model.includes("4-7") || model.includes("4.7");
   const thinkingParam = thinking
-    ? { thinking: { type: "enabled" as const, budget_tokens: THINKING_BUDGET } }
+    ? isAdaptiveThinkingModel
+      ? { thinking: { type: "adaptive" as const }, output_config: { effort: "xhigh" } }
+      : { thinking: { type: "enabled" as const, budget_tokens: THINKING_BUDGET } }
     : {};
 
   // Convert tools to Anthropic format
