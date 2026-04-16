@@ -1712,7 +1712,7 @@ async function handleClaude({
     max_tokens: maxTokens,
     ...(isAdaptiveThinkingModel
       ? {}
-      : { temperature: temperature ?? 1, top_p: topP ?? 0.95 }),
+      : { temperature: temperature ?? 1 }),
     ...(systemMessages ? { system: systemMessages } : {}),
     ...thinkingParam,
     messages: chatMessages,
