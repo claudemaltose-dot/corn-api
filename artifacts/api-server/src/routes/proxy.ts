@@ -746,12 +746,13 @@ function convertMessagesForClaude(messages: OAIMessage[]): AnthropicMessage[] {
 }
 
 router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Response) => {
-  const { model, messages, stream, max_tokens, temperature, tools, tool_choice } = req.body as {
+  const { model, messages, stream, max_tokens, temperature, top_p, tools, tool_choice } = req.body as {
     model?: string;
     messages: OAIMessage[];
     stream?: boolean;
     max_tokens?: number;
     temperature?: number;
+    top_p?: number;
     tools?: OAITool[];
     tool_choice?: unknown;
   };
@@ -808,7 +809,7 @@ router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Res
         const modelMax = CLAUDE_MODEL_MAX[actualModel] ?? 32000;
         const defaultMaxTokens = thinkingEnabled ? Math.max(modelMax, 32000) : modelMax;
         const client = makeLocalAnthropic();
-        result = await handleClaude({ req, res, client, model: actualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens ?? defaultMaxTokens, temperature, thinking: thinkingEnabled, thinkingVisible, tools, toolChoice: tool_choice, startTime });
+        result = await handleClaude({ req, res, client, model: actualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens ?? defaultMaxTokens, temperature, topP: top_p, thinking: thinkingEnabled, thinkingVisible, tools, toolChoice: tool_choice, startTime });
       } else if (isGeminiModel) {
         const thinkingVisible = selectedModel.endsWith("-thinking-visible");
         const thinkingEnabled = thinkingVisible || selectedModel.endsWith("-thinking");
