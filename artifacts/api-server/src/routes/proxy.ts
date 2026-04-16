@@ -746,11 +746,12 @@ function convertMessagesForClaude(messages: OAIMessage[]): AnthropicMessage[] {
 }
 
 router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Response) => {
-  const { model, messages, stream, max_tokens, tools, tool_choice } = req.body as {
+  const { model, messages, stream, max_tokens, temperature, tools, tool_choice } = req.body as {
     model?: string;
     messages: OAIMessage[];
     stream?: boolean;
     max_tokens?: number;
+    temperature?: number;
     tools?: OAITool[];
     tool_choice?: unknown;
   };
@@ -807,7 +808,7 @@ router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Res
         const modelMax = CLAUDE_MODEL_MAX[actualModel] ?? 32000;
         const defaultMaxTokens = thinkingEnabled ? Math.max(modelMax, 32000) : modelMax;
         const client = makeLocalAnthropic();
-        result = await handleClaude({ req, res, client, model: actualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens ?? defaultMaxTokens, thinking: thinkingEnabled, thinkingVisible, tools, toolChoice: tool_choice, startTime });
+        result = await handleClaude({ req, res, client, model: actualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens ?? defaultMaxTokens, temperature, thinking: thinkingEnabled, thinkingVisible, tools, toolChoice: tool_choice, startTime });
       } else if (isGeminiModel) {
         const thinkingVisible = selectedModel.endsWith("-thinking-visible");
         const thinkingEnabled = thinkingVisible || selectedModel.endsWith("-thinking");
@@ -1657,7 +1658,7 @@ async function handleGemini({
 }
 
 async function handleClaude({
-  req, res, client, model, messages, stream, maxTokens, thinking = false, thinkingVisible = false, tools, toolChoice, startTime,
+  req, res, client, model, messages, stream, maxTokens, temperature, thinking = false, thinkingVisible = false, tools, toolChoice, startTime,
 }: {
   req: Request;
   res: Response;
@@ -1666,6 +1667,7 @@ async function handleClaude({
   messages: OAIMessage[];
   stream: boolean;
   maxTokens: number;
+  temperature?: number;
   thinking?: boolean;
   thinkingVisible?: boolean;
   tools?: OAITool[];
@@ -1706,7 +1708,7 @@ async function handleClaude({
   const buildCreateParams = () => ({
     model,
     max_tokens: maxTokens,
-    temperature: 1,
+    temperature: temperature ?? 1,
     ...(systemMessages ? { system: systemMessages } : {}),
     ...thinkingParam,
     messages: chatMessages,
