@@ -49,22 +49,19 @@ const OPENROUTER_FEATURED = [
 const OPENROUTER_THINKING_BASE = [
   "anthropic/claude-opus-4.6",
   "anthropic/claude-opus-4.7",
+  "minimax/minimax-m2.7",
+  "z-ai/glm-5.1",
 ];
 const OPENROUTER_THINKING_MODELS: string[] = OPENROUTER_THINKING_BASE.flatMap((id) => [
   `${id}-thinking`,
   `${id}-thinking-visible`,
 ]);
 
-// OpenRouter models with effort-based reasoning.
-// Base model (in OPENROUTER_FEATURED) sends effort:"none"; -low/-high variants send the corresponding effort.
+// OpenRouter models with effort-based reasoning (always-on, no plain variant).
 // Exposed as <base>-low / <base>-high (hidden) and <base>-low-thinking-visible / <base>-high-thinking-visible
 const OPENROUTER_EFFORT_BASE = [
-  "google/gemini-3.1-pro-preview",  // no plain variant (always-on reasoning)
-  "minimax/minimax-m2.7",
-  "z-ai/glm-5.1",
+  "google/gemini-3.1-pro-preview",
 ];
-// Models where the plain featured entry should send effort:"none" to disable reasoning
-const OPENROUTER_EFFORT_NONE_SET = new Set(["minimax/minimax-m2.7", "z-ai/glm-5.1"]);
 const OPENROUTER_EFFORT_MODELS: string[] = OPENROUTER_EFFORT_BASE.flatMap((id) => [
   `${id}-low`,
   `${id}-high`,
@@ -863,14 +860,7 @@ router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Res
             : orThinkingEnabled
               ? selectedModel.replace(/-thinking$/, "")
               : selectedModel;
-          if (orThinkingEnabled) {
-            orReasoning = { enabled: true };
-          } else if (OPENROUTER_EFFORT_NONE_SET.has(orActualModel)) {
-            // Plain featured model that uses effort-based reasoning — disable explicitly
-            orReasoning = { effort: "none" };
-          } else {
-            orReasoning = undefined;
-          }
+          orReasoning = orThinkingEnabled ? { enabled: true } : undefined;
           orThinkingVis = orThinkingVisible;
         }
 
