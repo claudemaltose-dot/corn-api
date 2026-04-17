@@ -62,6 +62,9 @@ const OPENROUTER_THINKING_MODELS: string[] = OPENROUTER_THINKING_BASE.flatMap((i
 const OPENROUTER_EFFORT_BASE = [
   "google/gemini-3.1-pro-preview",
 ];
+// Base (plain) variants of these models default to thinking if reasoning is omitted;
+// must explicitly send effort:"none" to disable it.
+const OPENROUTER_EFFORT_NONE_SET = new Set(["minimax/minimax-m2.7", "z-ai/glm-5.1"]);
 const OPENROUTER_EFFORT_MODELS: string[] = OPENROUTER_EFFORT_BASE.flatMap((id) => [
   `${id}-low`,
   `${id}-high`,
@@ -860,7 +863,13 @@ router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Res
             : orThinkingEnabled
               ? selectedModel.replace(/-thinking$/, "")
               : selectedModel;
-          orReasoning = orThinkingEnabled ? { enabled: true } : undefined;
+          if (orThinkingEnabled) {
+            orReasoning = { enabled: true };
+          } else if (OPENROUTER_EFFORT_NONE_SET.has(orActualModel)) {
+            orReasoning = { effort: "none" };
+          } else {
+            orReasoning = undefined;
+          }
           orThinkingVis = orThinkingVisible;
         }
 
