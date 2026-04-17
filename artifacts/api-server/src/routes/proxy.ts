@@ -57,6 +57,18 @@ const OPENROUTER_THINKING_MODELS: string[] = OPENROUTER_THINKING_BASE.flatMap((i
   `${id}-thinking-visible`,
 ]);
 
+// OpenRouter models with effort-based reasoning (always on, no plain variant)
+// Exposed as <base>-low / <base>-high (hidden) and <base>-low-thinking-visible / <base>-high-thinking-visible
+const OPENROUTER_EFFORT_BASE = [
+  "google/gemini-3.1-pro-preview",
+];
+const OPENROUTER_EFFORT_MODELS: string[] = OPENROUTER_EFFORT_BASE.flatMap((id) => [
+  `${id}-low`,
+  `${id}-high`,
+  `${id}-low-thinking-visible`,
+  `${id}-high-thinking-visible`,
+]);
+
 const OPENAI_MODELS = OPENAI_CHAT_MODELS.map((id) => ({ id, description: "OpenAI model" }));
 const CLAUDE_MODELS = ANTHROPIC_BASE_MODELS.flatMap((id) => [
   { id, description: "Anthropic Claude model" },
@@ -77,6 +89,7 @@ const ALL_MODELS = [
   ]),
   ...OPENROUTER_FEATURED.map((id) => ({ id })),
   ...OPENROUTER_THINKING_MODELS.map((id) => ({ id })),
+  ...OPENROUTER_EFFORT_MODELS.map((id) => ({ id })),
 ];
 
 // ---------------------------------------------------------------------------
@@ -130,6 +143,7 @@ for (const base of GEMINI_BASE_MODELS) {
 }
 for (const id of OPENROUTER_FEATURED) { MODEL_PROVIDER_MAP.set(id, "openrouter"); }
 for (const id of OPENROUTER_THINKING_MODELS) { MODEL_PROVIDER_MAP.set(id, "openrouter"); }
+for (const id of OPENROUTER_EFFORT_MODELS) { MODEL_PROVIDER_MAP.set(id, "openrouter"); }
 
 let disabledModels: Set<string> = new Set<string>();
 
@@ -822,15 +836,36 @@ router.post("/v1/chat/completions", requireApiKey, async (req: Request, res: Res
             : selectedModel;
         result = await handleGemini({ req, res, model: actualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens, thinking: thinkingEnabled, thinkingVisible, startTime });
       } else if (isOpenRouterModel) {
-        const orThinkingVisible = selectedModel.endsWith("-thinking-visible");
-        const orThinkingEnabled = orThinkingVisible || selectedModel.endsWith("-thinking");
-        const orActualModel = orThinkingVisible
-          ? selectedModel.replace(/-thinking-visible$/, "")
-          : orThinkingEnabled
-            ? selectedModel.replace(/-thinking$/, "")
-            : selectedModel;
+        // Detect effort-based models: <base>-low[-thinking-visible] or <base>-high[-thinking-visible]
+        const orEffortVisibleMatch = selectedModel.match(/^(.+)-(low|high)-thinking-visible$/);
+        const orEffortHiddenMatch = !orEffortVisibleMatch && selectedModel.match(/^(.+)-(low|high)$/);
+        const orThinkingVisible = !orEffortVisibleMatch && !orEffortHiddenMatch && selectedModel.endsWith("-thinking-visible");
+        const orThinkingEnabled = !orEffortVisibleMatch && !orEffortHiddenMatch && (orThinkingVisible || selectedModel.endsWith("-thinking"));
+
+        let orActualModel: string;
+        let orReasoning: { enabled: boolean } | { effort: string } | undefined;
+        let orThinkingVis: boolean;
+
+        if (orEffortVisibleMatch) {
+          orActualModel = orEffortVisibleMatch[1];
+          orReasoning = { effort: orEffortVisibleMatch[2] };
+          orThinkingVis = true;
+        } else if (orEffortHiddenMatch) {
+          orActualModel = orEffortHiddenMatch[1];
+          orReasoning = { effort: orEffortHiddenMatch[2] };
+          orThinkingVis = false;
+        } else {
+          orActualModel = orThinkingVisible
+            ? selectedModel.replace(/-thinking-visible$/, "")
+            : orThinkingEnabled
+              ? selectedModel.replace(/-thinking$/, "")
+              : selectedModel;
+          orReasoning = orThinkingEnabled ? { enabled: true } : undefined;
+          orThinkingVis = orThinkingVisible;
+        }
+
         const client = makeLocalOpenRouter();
-        result = await handleOpenAI({ req, res, client, model: orActualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens, tools, toolChoice: tool_choice, startTime, reasoning: orThinkingEnabled ? { enabled: true } : undefined, thinkingVisible: orThinkingVisible });
+        result = await handleOpenAI({ req, res, client, model: orActualModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens, tools, toolChoice: tool_choice, startTime, reasoning: orReasoning, thinkingVisible: orThinkingVis });
       } else {
         const client = makeLocalOpenAI();
         result = await handleOpenAI({ req, res, client, model: selectedModel, messages: finalMessages, stream: shouldStream, maxTokens: max_tokens, tools, toolChoice: tool_choice, startTime });
@@ -1391,7 +1426,7 @@ async function handleOpenAI({
   tools?: OAITool[];
   toolChoice?: unknown;
   startTime: number;
-  reasoning?: { enabled: boolean };
+  reasoning?: { enabled: boolean } | { effort: string };
   thinkingVisible?: boolean;
 }): Promise<{ promptTokens: number; completionTokens: number; ttftMs?: number }> {
   const params: Parameters<typeof client.chat.completions.create>[0] = {
