@@ -51,6 +51,7 @@ const OPENROUTER_THINKING_BASE = [
   "anthropic/claude-opus-4.7",
   "minimax/minimax-m2.7",
   "z-ai/glm-5.1",
+  "moonshotai/kimi-k2.6",
 ];
 const OPENROUTER_THINKING_MODELS: string[] = OPENROUTER_THINKING_BASE.flatMap((id) => [
   `${id}-thinking`,
@@ -64,7 +65,7 @@ const OPENROUTER_EFFORT_BASE = [
 ];
 // Base (plain) variants of these models default to thinking if reasoning is omitted;
 // must explicitly send effort:"none" to disable it.
-const OPENROUTER_EFFORT_NONE_SET = new Set(["minimax/minimax-m2.7", "z-ai/glm-5.1"]);
+const OPENROUTER_EFFORT_NONE_SET = new Set(["minimax/minimax-m2.7", "z-ai/glm-5.1", "moonshotai/kimi-k2.6"]);
 const OPENROUTER_EFFORT_MODELS: string[] = OPENROUTER_EFFORT_BASE.flatMap((id) => [
   `${id}-low`,
   `${id}-high`,
